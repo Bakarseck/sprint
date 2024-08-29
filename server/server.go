@@ -17,9 +17,15 @@ import (
 
 // Server struct defines the basic properties of the server including Host, Port, and a route tree for routing.
 type Server struct {
-	Host      string
-	Port      string
-	routeTree core.EndpointNode
+	Host        string
+	Port        string
+	routeTree   core.EndpointNode
+	middlewares []core.Middleware
+}
+
+// Use method adds a middleware to the server's middleware chain.
+func (server *Server) Use(middleware core.Middleware) {
+	server.middlewares = append(server.middlewares, middleware)
 }
 
 // __logger is a global logger instance, initialized to a default logger.
@@ -194,6 +200,18 @@ func (server *Server) extractHTTPBufferData(data string) (core.Request, error) {
 				return core.Request{}, err
 			}
 			body = jsonObj
+		} else if strings.HasPrefix(contentType, "application/x-www-form-urlencoded") {
+			params := make(map[string]string)
+			formData := body.(string)
+			pairs := strings.Split(formData, "&")
+			for _, pair := range pairs {
+				kv := strings.SplitN(pair, "=", 2)
+				if len(kv) == 2 {
+					key := kv[0]
+					value := kv[1]
+					params[key] = value
+				}
+			}
 		} else {
 			return core.Request{}, errors.New("ContentTypeException")
 		}
@@ -203,6 +221,19 @@ func (server *Server) extractHTTPBufferData(data string) (core.Request, error) {
 		return core.Request{}, err
 	}
 	return core.Request{Method: method, Endpoint: endpoint, Protocol: protocol, Headers: headers, Query: query, Body: body, Params: params}, nil
+}
+
+func (server *Server) applyMiddlewares(req core.Request, finalHandler func(core.Request) core.Response) core.Response {
+	var execMiddleware func(int, core.Request) core.Response
+	execMiddleware = func(index int, req core.Request) core.Response {
+		if index < len(server.middlewares) {
+			return server.middlewares[index](req, func(req core.Request) core.Response {
+				return execMiddleware(index+1, req)
+			})
+		}
+		return finalHandler(req)
+	}
+	return execMiddleware(0, req)
 }
 
 func (server *Server) readBuffer(conn net.Conn) {
@@ -226,7 +257,12 @@ func (server *Server) readBuffer(conn net.Conn) {
 	if err != nil {
 		__logger.Error(string(err.Error()), "ServerCore")
 	}
-	response := server.handleRequest(&server.routeTree, request)
+
+	// Appliquer les middlewares
+	response := server.applyMiddlewares(request, func(req core.Request) core.Response {
+		return server.handleRequest(&server.routeTree, req)
+	})
+
 	server.handleResponse(&conn, request.Headers["Accept"], request.Protocol, &response)
 	endTime := time.Now()
 	responseMessage := fmt.Sprintf("%s ==> %s - {{ %s }}", conn.RemoteAddr().String(), request.Method, request.Endpoint)
@@ -323,4 +359,16 @@ func (server *Server) FormatContentString(content interface{}) string {
 		panic(err)
 	}
 	return contentString
+}
+
+func CORSMiddleware(req core.Request, next func(core.Request) core.Response) core.Response {
+	req.Headers["Access-Control-Allow-Origin"] = "*"
+	req.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+	req.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+
+	if req.Method == "OPTIONS" {
+		return core.Response{StatusCode: 200, ContentType: core.PLAINTEXT, Content: ""}
+	}
+
+	return next(req)
 }

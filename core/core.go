@@ -15,6 +15,8 @@ type Controller struct {
 	Routes []*Route // Routes defined for this controller.
 }
 
+type Middleware func(Request, func(Request) Response) Response
+
 // AddRoute is a method to add new routes to a Controller.
 func (controller *Controller) AddRoute(method HttpMethod, endpoint string, handler func(request Request) Response) {
 	if controller.Routes == nil {
