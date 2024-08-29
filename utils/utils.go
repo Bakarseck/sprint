@@ -88,6 +88,24 @@ func HandlePlainText(response *core.Response) {
 	response.Content = (response.Content).(string)
 }
 
+func InterfaceToJSONObj(data interface{}) (map[string]interface{}, error) {
+	// Convert interface to JSON
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert JSON to map
+	var jsonObj map[string]interface{}
+	err = json.Unmarshal(jsonData, &jsonObj)
+	if err != nil {
+		return nil, err
+	}
+
+	return jsonObj, nil
+}
+
+
 func JoinPaths(paths ...string) string {
 	var buffer strings.Builder
 

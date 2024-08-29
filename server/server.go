@@ -198,7 +198,11 @@ func (server *Server) extractHTTPBufferData(data string) (core.Request, error) {
 			return core.Request{}, errors.New("ContentTypeException")
 		}
 	}
-	return core.Request{Method: method, Endpoint: endpoint, Protocol: protocol, Headers: headers, Query: query, Body: body, Params: make(map[string]string)}, nil
+	params, err := utils.InterfaceToJSONObj(body)
+	if err != nil {
+		return core.Request{}, err
+	}
+	return core.Request{Method: method, Endpoint: endpoint, Protocol: protocol, Headers: headers, Query: query, Body: body, Params: params}, nil
 }
 
 func (server *Server) readBuffer(conn net.Conn) {

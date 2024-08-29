@@ -33,13 +33,13 @@ type Route struct {
 
 // Request represents the HTTP request data received by the server.
 type Request struct {
-	Method   string            // HTTP method used for the request.
-	Endpoint string            // Target endpoint of the request.
-	Protocol string            // Protocol used for the request, e.g., HTTP, HTTPS.
-	Params   map[string]string // URL parameters.
-	Headers  map[string]string // HTTP headers.
-	Query    []string          // Query parameters.
-	Body     interface{}       // Request body.
+	Method   string                 // HTTP method used for the request.
+	Endpoint string                 // Target endpoint of the request.
+	Protocol string                 // Protocol used for the request, e.g., HTTP, HTTPS.
+	Params   map[string]interface{} // URL parameters.
+	Headers  map[string]string      // HTTP headers.
+	Query    []string               // Query parameters.
+	Body     interface{}            // Request body.
 	// TODO : ADD METADATA
 }
 
