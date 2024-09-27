@@ -23,13 +23,13 @@ type Server struct {
 	middlewares []core.Middleware
 }
 
+// __logger is a global logger instance, initialized to a default logger.
+var __logger logger.Logger = logger.Logger{}
+
 // Use method adds a middleware to the server's middleware chain.
 func (server *Server) Use(middleware core.Middleware) {
 	server.middlewares = append(server.middlewares, middleware)
 }
-
-// __logger is a global logger instance, initialized to a default logger.
-var __logger logger.Logger = logger.Logger{}
 
 // Start initiates the server to listen on the specified Host and Port.
 // It resolves routes, logs server starting, listens for incoming connections, and spawns goroutines to handle each connection.
@@ -200,27 +200,11 @@ func (server *Server) extractHTTPBufferData(data string) (core.Request, error) {
 				return core.Request{}, err
 			}
 			body = jsonObj
-		} else if strings.HasPrefix(contentType, "application/x-www-form-urlencoded") {
-			params := make(map[string]string)
-			formData := body.(string)
-			pairs := strings.Split(formData, "&")
-			for _, pair := range pairs {
-				kv := strings.SplitN(pair, "=", 2)
-				if len(kv) == 2 {
-					key := kv[0]
-					value := kv[1]
-					params[key] = value
-				}
-			}
 		} else {
 			return core.Request{}, errors.New("ContentTypeException")
 		}
 	}
-	params, err := utils.InterfaceToJSONObj(body)
-	if err != nil {
-		return core.Request{}, err
-	}
-	return core.Request{Method: method, Endpoint: endpoint, Protocol: protocol, Headers: headers, Query: query, Body: body, Params: params}, nil
+	return core.Request{Method: method, Endpoint: endpoint, Protocol: protocol, Headers: headers, Query: query, Body: body, Params: make(map[string]string)}, nil
 }
 
 func (server *Server) applyMiddlewares(req core.Request, finalHandler func(core.Request) core.Response) core.Response {
@@ -367,8 +351,31 @@ func CORSMiddleware(req core.Request, next func(core.Request) core.Response) cor
 	req.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
 
 	if req.Method == "OPTIONS" {
-		return core.Response{StatusCode: 200, ContentType: core.PLAINTEXT, Content: ""}
+		return core.Response{
+			StatusCode:  200,
+			ContentType: core.PLAINTEXT,
+			Content:     "",
+			StatusText:  "OK",
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin":  "*",
+				"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+				"Access-Control-Allow-Headers": "Content-Type, Authorization",
+			},
+		}
 	}
 
-	return next(req)
+	response := next(req)
+
+	fmt.Println("Response:", response, req.Body)
+
+	// Initialiser la map Headers si elle est nil
+	if response.Headers == nil {
+		response.Headers = make(map[string]string)
+	}
+
+	response.Headers["Access-Control-Allow-Origin"] = "*"
+	response.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+	response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+
+	return response
 }

@@ -8,14 +8,14 @@ type Module struct {
 	Controllers []*Controller // Controllers associated with this module.
 }
 
+type Middleware func(Request, func(Request) Response) Response
+
 // Controller handles incoming HTTP requests and routes them to their respective handler functions.
 type Controller struct {
 	Name   string   // Name of the controller.
 	Path   string   // Base path to which this controller's routes will be appended.
 	Routes []*Route // Routes defined for this controller.
 }
-
-type Middleware func(Request, func(Request) Response) Response
 
 // AddRoute is a method to add new routes to a Controller.
 func (controller *Controller) AddRoute(method HttpMethod, endpoint string, handler func(request Request) Response) {
@@ -35,13 +35,13 @@ type Route struct {
 
 // Request represents the HTTP request data received by the server.
 type Request struct {
-	Method   string                 // HTTP method used for the request.
-	Endpoint string                 // Target endpoint of the request.
-	Protocol string                 // Protocol used for the request, e.g., HTTP, HTTPS.
-	Params   map[string]interface{} // URL parameters.
-	Headers  map[string]string      // HTTP headers.
-	Query    []string               // Query parameters.
-	Body     interface{}            // Request body.
+	Method   string            // HTTP method used for the request.
+	Endpoint string            // Target endpoint of the request.
+	Protocol string            // Protocol used for the request, e.g., HTTP, HTTPS.
+	Params   map[string]string // URL parameters.
+	Headers  map[string]string // HTTP headers.
+	Query    []string          // Query parameters.
+	Body     interface{}       // Request body.
 	// TODO : ADD METADATA
 }
 
